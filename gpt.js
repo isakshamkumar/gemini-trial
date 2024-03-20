@@ -21,9 +21,8 @@ const genAI = new GoogleGenerativeAI(apiKey);
 app.use(express.json());
 app.post("/", async (req, res) => {
   const { title, units } = req.body;
-  const unitY = () => new Array(units.map(index));
   const system_prompt =
-    "You are an AI capable of curating course content, coming up with relevant chapter titles, and finding relevant youtube videos for each chapter. A course represents a object with course_title as a string and units array of objects in which a object as unit_title as key and chapters as a array , this chapters would be an array of an objects and containing youtube_search_term and chapter_title";
+    "You are an AI capable of curating course content, coming up with relevant chapter titles, and finding relevant youtube videos for each chapter. A course represents a object with course_title as a string and units array of objects in which a object as unit_title as key and chapters as a array , this chapters would be an array of an objects and containing youtube_search_term and chapter_title. The title provided to you research more about it and strictly give in more chapters other than units provided by user related to the title provided to you , for example i am giving you 2 units , for a specific title but you should find more units or topics related to that title and include them in output as well with the other 2 units user gave it to you and include them in different chapters with a relavant unit_title according to you , they should be inside the Units array";
   const user_prompt = units.map(
     (unit) =>
       `It is your job to create a unit about ${unit}. The user has requested to create chapters for ${unit}. Then, for each chapter, provide a detailed YouTube search query that can be used to find an informative educational video for each chapter. Each query should give an educational informative course in YouTube.`
