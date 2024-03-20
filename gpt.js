@@ -5,7 +5,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { json } = require("express/lib/response");
 const apiKey = "AIzaSyBLEP8u2Sgf5oSNEUBWdYOwbWh_jpud0xo"; // Ensure you have set GOOGLE_API_KEY environment variable
 const genAI = new GoogleGenerativeAI(apiKey);
-// and if there is not limited units provided by user you should automatically make different arrays according to you if there are different chapter_title
+
 // const configuration = new Configuration({
 //   apiKey: process.env.OPENAI_API_KEY,
 // });
@@ -23,18 +23,26 @@ app.post("/", async (req, res) => {
   const { title, units } = req.body;
   const unitY = () => new Array(units.map(index));
   const system_prompt =
-    "You are an AI capable of curating course content, coming up with relevant chapter titles, and finding relevant youtube videos for each chapter";
+    "You are an AI capable of curating course content, coming up with relevant chapter titles, and finding relevant youtube videos for each chapter. A course represents a object with course_title as a string and units array of objects in which a object as unit_title as key and chapters as a array , this chapters would be an array of an objects and containing youtube_search_term and chapter_title";
   const user_prompt = units.map(
     (unit) =>
-      `It is your job to create a course about ${unit}. The user has requested to create chapters for ${unit}. Then, for each chapter, provide a detailed YouTube search query that can be used to find an informative educational video for each chapter. Each query should give an educational informative course in YouTube.`
+      `It is your job to create a unit about ${unit}. The user has requested to create chapters for ${unit}. Then, for each chapter, provide a detailed YouTube search query that can be used to find an informative educational video for each chapter. Each query should give an educational informative course in YouTube.`
   );
   const output_format = {
-    title: title,
-    unit: units,
-    chapters:
-      "an array of chapters it is for a particular unit , each chapter should have a youtube_search_query and a chapter_title key in the JSON object there would different arrays of chapter for different units ",
+    course_title: `make sure alwaays include this ${title} in output and if the title does not resonate with the units then make a course_title which resonates with unit_title and this is only the main title of the whole course summkarizing what all is in this course`,
+    Units: [
+      {
+        unit_title: "this is the unit title for a particular unit",
+        chapters: [
+          {
+            youtube_search_query:
+              "this youtube search query would be provided by you",
+            chapter_title: "this chapter_title would be provided by you",
+          },
+        ],
+      },
+    ],
   };
-
   let result = await strict_output(system_prompt, user_prompt, output_format);
 
   if (
@@ -133,64 +141,11 @@ async function strict_output(
     // try-catch block to ensure output format is adhered to
     try {
       let output = JSON.parse(cleanedData);
-
-      if (list_input) {
-        if (!Array.isArray(output)) {
-          throw new Error("Output format not in an array of json");
-        }
-      } else {
-        output = [output];
-      }
-
-      // check for each element in the output_list, the format is correctly adhered to
-      for (let index = 0; index < output.length; index++) {
-        for (const key in output_format) {
-          // unable to ensure accuracy of dynamic output header, so skip it
-          if (/<.*?>/.test(key)) {
-            continue;
-          }
-
-          // if output field missing, raise an error
-          if (!(key in output[index])) {
-            throw new Error(`${key} not in json output`);
-          }
-
-          // check that one of the choices given for the list of words is an unknown
-          if (Array.isArray(output_format[key])) {
-            const choices = output_format[key];
-            // ensure output is not a list
-            if (Array.isArray(output[index][key])) {
-              output[index][key] = output[index][key][0];
-            }
-            // output the default category (if any) if GPT is unable to identify the category
-            if (!choices.includes(output[index][key]) && default_category) {
-              output[index][key] = default_category;
-            }
-            // if the output is a description format, get only the label
-            if (output[index][key].includes(":")) {
-              output[index][key] = output[index][key].split(":")[0];
-            }
-          }
-        }
-
-        // if we just want the values for the outputs
-        if (output_value_only) {
-          output[index] = Object.values(output[index]);
-          // just output without the list if there is only one element
-          if (output[index].length === 1) {
-            output[index] = output[index][0];
-          }
-        }
-      }
-      console.log(list_input, "list input");
-      console.log(output, "output");
-      return list_input ? output : output[0];
-    } catch (e) {
-      // error_msg = `\n\nResult: ${res}\n\nError message: ${e}`;
-      console.log("An exception occurred:", e);
-      // console.log("Current invalid json format ", res);
+      const r = cleanedData.replace(/[`\\]/g, "");
+      return output;
+      // Define a replacer function to remove unwanted characters
+    } catch (error) {
+      console.log(error);
     }
   }
-
-  return [];
 }
