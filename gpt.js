@@ -20,9 +20,12 @@ const genAI = new GoogleGenerativeAI(apiKey);
 
 app.use(express.json());
 app.post("/", async (req, res) => {
-  const { title, units } = req.body;
-  const system_prompt =
-    "You are an AI capable of curating course content, coming up with relevant chapter titles, and finding relevant youtube videos for each chapter. A course represents a object with course_title as a string and units array of objects in which a object as unit_title as key and chapters as a array , this chapters would be an array of an objects and containing youtube_search_term and chapter_title. The title provided to you research more about it and strictly give in more chapters other than units provided by user related to the title provided to you , for example i am giving you 2 units , for a specific title but you should find more units or topics related to that title and include them in output as well with the other 2 units user gave it to you and include them in different chapters with a relavant unit_title according to you , they should be inside the Units array";
+  const { title, units, paid } = req.body;
+  const system_prompt = `You are an AI capable of curating course content, coming up with relevant chapter titles, and finding relevant youtube videos for each chapter. A course represents a object with course_title as a string and units array of objects in which a object as unit_title as key and chapters as a array , this chapters would be an array of an objects and containing youtube_search_term and chapter_title. ${
+    !paid
+      ? ``
+      : `The title provided to you research more about it and strictly give in more chapters other than units provided by user related to the title provided to you , for example i am giving you 2 units , for a specific title but you should find more units or topics related to that title and include them in output as well with the other 2 units user gave it to you and include them in different chapters with a relavant unit_title according to you , they should be inside the Units array . It is madatory to give more as much as possible chapters with atleast 8 chapters and 8 units each, and more detailed youtube_search_query and units. If the title and unit_title is not much expressive to get you specific topics you should take the title and search it and make end to end course according to you for that for example i want learn python then you will give me course from installing to building projects in python`
+  }`;
   const user_prompt = units.map(
     (unit) =>
       `It is your job to create a unit about ${unit}. The user has requested to create chapters for ${unit}. Then, for each chapter, provide a detailed YouTube search query that can be used to find an informative educational video for each chapter. Each query should give an educational informative course in YouTube.`
@@ -83,68 +86,89 @@ async function strict_output(
   // model: string = "gpt-3.5-turbo",
   temperature = 1,
   num_tries = 3,
+  paid = false,
   verbose = false
 ) {
-  // if the user input is in a list, we also process the output as a list of json
-  const list_input = Array.isArray(user_prompt);
-  // if the output format contains dynamic elements of < or >, then add to the prompt to handle dynamic elements
-  const dynamic_elements = /<.*?>/.test(JSON.stringify(output_format));
-  // if the output format contains list elements of [ or ], then we add to the prompt to handle lists
-  const list_output = /\[.*?\]/.test(JSON.stringify(output_format));
+  while (true) {
+    const list_input = Array.isArray(user_prompt);
+    // if the output format contains dynamic elements of < or >, then add to the prompt to handle dynamic elements
+    const dynamic_elements = /<.*?>/.test(JSON.stringify(output_format));
+    // if the output format contains list elements of [ or ], then we add to the prompt to handle lists
+    const list_output = /\[.*?\]/.test(JSON.stringify(output_format));
 
-  // start off with no error message
-  let error_msg = "";
+    // start off with no error message
+    let error_msg = "";
 
-  for (let i = 0; i < num_tries; i++) {
-    let output_format_prompt = `\nYou are to output ${
-      list_output && "an array of objects in"
-    } the following in json format: ${JSON.stringify(
-      output_format
-    )}. \nDo not put quotation marks or escape character \\ in the output fields.`;
+    for (let i = 0; i < num_tries; i++) {
+      let output_format_prompt = `\nYou are to output ${
+        list_output && "an array of objects in"
+      } the following in json format: ${JSON.stringify(
+        output_format
+      )}. \nDo not put quotation marks or escape character \\ in the output fields.`;
 
-    if (list_output) {
-      output_format_prompt += `\nIf output field is a list, classify output into the best element of the list.`;
+      if (list_output) {
+        output_format_prompt += `\nIf output field is a list, classify output into the best element of the list.`;
+      }
+
+      // if output_format contains dynamic elements, process it accordingly
+      if (dynamic_elements) {
+        output_format_prompt += `\nAny text enclosed by < and > indicates you must generate content to replace it. Example input: Go to <location>, Example output: Go to the garden\nAny output key containing < and > indicates you must generate the key name to replace it. Example input: {'<location>': 'description of location'}, Example output: {school: a place for education}`;
+      }
+
+      // if input is in a list format, ask it to generate json in a list
+      if (list_input) {
+        output_format_prompt += `\nGenerate an array of json, one json for each input element.`;
+      }
+
+      // Use OpenAI to get a response
+      const result = await model.generateContent(
+        JSON.stringify({
+          messages: [
+            {
+              role: "system",
+              content: system_prompt + output_format_prompt + error_msg,
+            },
+            { role: "user", content: user_prompt.toString() },
+          ],
+        })
+      );
+
+      // console.log(result,'resultttttt');
+
+      if (
+        result &&
+        result.response &&
+        result.response.candidates &&
+        result.response.candidates.length > 0
+      ) {
+        let respContent = result.response.candidates[0].content;
+        let respText = respContent.parts[0].text;
+        const cleanedData = respText.replace(/\n/g, "");
+
+        // Parse the cleaned string into a JSON object
+        try {
+          let output = JSON.parse(cleanedData);
+          // Check if the number of units is less than 4 and paid is true
+          if (paid && output.result.Units && output.result.Units.length < 12) {
+            // If condition not met, continue the loop to call the API again
+            continue;
+          } else if (
+            paid &&
+            output.result.Units &&
+            output.result.Units.length == 12
+          ) {
+            return output;
+          }
+
+          // Return the output if the condition is met
+        } catch (error) {
+          console.log(error);
+        }
+      }
+      break;
     }
-
-    // if output_format contains dynamic elements, process it accordingly
-    if (dynamic_elements) {
-      output_format_prompt += `\nAny text enclosed by < and > indicates you must generate content to replace it. Example input: Go to <location>, Example output: Go to the garden\nAny output key containing < and > indicates you must generate the key name to replace it. Example input: {'<location>': 'description of location'}, Example output: {school: a place for education}`;
-    }
-
-    // if input is in a list format, ask it to generate json in a list
-    if (list_input) {
-      output_format_prompt += `\nGenerate an array of json, one json for each input element.`;
-    }
-
-    // Use OpenAI to get a response
-    const result = await model.generateContent(
-      JSON.stringify({
-        messages: [
-          {
-            role: "system",
-            content: system_prompt + output_format_prompt + error_msg,
-          },
-          { role: "user", content: user_prompt.toString() },
-        ],
-      })
-    );
-
-    // console.log(result,'resultttttt');
-
-    let respContent = result.response.candidates[0].content;
-    let respText = respContent.parts[0].text;
-    const cleanedData = respText.replace(/\n/g, "");
-
-    // Parse the cleaned string into a JSON object
-    // const jsonData = JSON.parse(cleanedData);
-    // try-catch block to ensure output format is adhered to
-    try {
-      let output = JSON.parse(cleanedData);
-      const r = cleanedData.replace(/[`\\]/g, "");
-      return output;
-      // Define a replacer function to remove unwanted characters
-    } catch (error) {
-      console.log(error);
-    }
+    console.log("hello");
+    return null;
   }
+  // if the user input is in a list, we also process the output as a list of json
 }
