@@ -18,7 +18,7 @@ app.use(express.json());
 async function generateContent(prompt) {
   const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-  console.log("tokens", totalTokens);
+  // console.log("tokens", totalTokens);
   const result = await model.generateContent(prompt);
   const response = await result.response;
   return response.text();
@@ -29,9 +29,9 @@ async function runGeminiPro(title, units) {
   const system_prompt =
     "You are an AI capable of curating course content, coming up with relevant chapter titles, and finding relevant youtube videos for each chapter";
   const user_prompt =
-    "It is your job to create a course about " +
-    title +
-    `. The user has requested to create chapters for each of the ${units}. Then, for each chapter, provide a detailed youtube search query that can be used to find an informative educationalvideo for each chapter. Each query should give an educational informative course in youtube. you should give it in a json format and stucture i have provided`;
+  new Array(units.length).fill(
+    `It is your job to create a course about ${title}. The user has requested to create chapters for each of the units. Then, for each chapter, provide a detailed youtube search query that can be used to find an informative educational video for each chapter. Each query should give an educational informative course in youtube.`
+  )
   const output_format = {
     title: title,
     chapters:
@@ -41,9 +41,11 @@ async function runGeminiPro(title, units) {
   const prompt =
     system_prompt + user_prompt + "the json format is " + user_prompt;
   const output = await generateContent(prompt);
-  const { totalTokens } = await model.countTokens(output);
-  console.log("token", totalTokens);
+  // const { totalTokens } = await model.countTokens(output);
+  // console.log("token", totalTokens);
   console.log(output);
+  JSON.stringify(output);
+  console.log(output,'after stringify');
   return JSON.parse(output);
 }
 
