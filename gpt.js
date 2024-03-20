@@ -5,7 +5,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { json } = require("express/lib/response");
 const apiKey = "AIzaSyBLEP8u2Sgf5oSNEUBWdYOwbWh_jpud0xo"; // Ensure you have set GOOGLE_API_KEY environment variable
 const genAI = new GoogleGenerativeAI(apiKey);
-
+// and if there is not limited units provided by user you should automatically make different arrays according to you if there are different chapter_title
 // const configuration = new Configuration({
 //   apiKey: process.env.OPENAI_API_KEY,
 // });
@@ -17,35 +17,44 @@ const genAI = new GoogleGenerativeAI(apiKey);
 // interface OutputFormat {
 //   [key: string]: string | string[] | OutputFormat;
 // }
+
 app.use(express.json());
 app.post("/", async (req, res) => {
   const { title, units } = req.body;
+  const unitY = () => new Array(units.map(index));
   const system_prompt =
     "You are an AI capable of curating course content, coming up with relevant chapter titles, and finding relevant youtube videos for each chapter";
-  const user_prompt = new Array(units.length).fill(
-    `It is your job to create a course about ${title} and this unit. The user has requested to create chapters for each of the units. Then, for each chapter, provide a detailed youtube search query that can be used to find an informative educational video for each chapter. Each query should give an educational informative course in youtube.`
-  )
+  const user_prompt = units.map(
+    (unit) =>
+      `It is your job to create a course about ${unit}. The user has requested to create chapters for ${unit}. Then, for each chapter, provide a detailed YouTube search query that can be used to find an informative educational video for each chapter. Each query should give an educational informative course in YouTube.`
+  );
   const output_format = {
     title: title,
+    unit: units,
     chapters:
-      "an array of chapters, each chapter should have a youtube_search_query and a chapter_title key in the JSON object",
+      "an array of chapters it is for a particular unit , each chapter should have a youtube_search_query and a chapter_title key in the JSON object there would different arrays of chapter for different units ",
   };
 
   let result = await strict_output(system_prompt, user_prompt, output_format);
 
-  // if (result && result.response && result.response.candidates && result.response.candidates.length > 0) {
-  //     let respContent = result.response.candidates[0].content;
-  //     if (respContent && respContent.parts && respContent.parts.length > 0) {
-  //         let respText = respContent.parts[0].text;
-  //         if (respText) {
-  //           // Remove \n characters
-  //           const cleanedData = respText.replace(/\n/g, '');
-  //           // Parse the cleaned string into a JSON object
-  //           const jsonData = JSON.parse(cleanedData);
-  //           return res.status(200).json(jsonData);
-  //         }
-  //     }
-  // }
+  if (
+    result &&
+    result.response &&
+    result.response.candidates &&
+    result.response.candidates.length > 0
+  ) {
+    let respContent = result.response.candidates[0].content;
+    if (respContent && respContent.parts && respContent.parts.length > 0) {
+      let respText = respContent.parts[0].text;
+      if (respText) {
+        // Remove \n characters
+        const cleanedData = respText.replace(/\n/g, "");
+        // Parse the cleaned string into a JSON object
+        const jsonData = JSON.parse(cleanedData);
+        return res.status(200).json(jsonData);
+      }
+    }
+  }
   if (result) {
     return res.json({ result });
   }
