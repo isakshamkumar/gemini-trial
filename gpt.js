@@ -21,11 +21,33 @@ const genAI = new GoogleGenerativeAI(apiKey);
 app.use(express.json());
 app.post("/", async (req, res) => {
   const { title, units, paid } = req.body;
-  const system_prompt = `You are an AI capable of curating course content, coming up with relevant chapter titles, and finding relevant youtube videos for each chapter. A course represents a object with course_title as a string and units array of objects in which a object as unit_title as key and chapters as a array , this chapters would be an array of an objects and containing youtube_search_term and chapter_title. ${
-    !paid
-      ? ``
-      : `The title provided to you research more about it and strictly give in more chapters other than units provided by user related to the title provided to you , for example i am giving you 2 units , for a specific title but you should find more units or topics related to that title and include them in output as well with the other 2 units user gave it to you and include them in different chapters with a relavant unit_title according to you , they should be inside the Units array . It is madatory to give more as much as possible chapters with atleast 8 chapters and 8 units each, and more detailed youtube_search_query and units. If the title and unit_title is not much expressive to get you specific topics you should take the title and search it and make end to end course according to you for that for example i want learn python then you will give me course from installing to building projects in python`
-  }`;
+  const system_prompt = `You are an AI capable of curating comprehensive course content. Given a course title and an array of unit titles, your task is to generate a detailed course structure. This includes creating relevant chapter titles and identifying YouTube videos for each chapter. The course should cover a wide range of topics related to the provided title, ensuring a comprehensive learning experience.
+
+  For each unit, generate a detailed chapter structure. ${!paid? ' Generate a structure with 4-5 chapters per unit,focus on the core concepts and foundational knowledge. ':' ensure to include additional units or topics related to the provided title, with a structure that includes at least 8 chapters per unit. The goal is to create a course that starts from the basics and progresses to advanced topics, covering all aspects of the subject matter'} Each chapter should include a YouTube search query that leads to an informative educational video. The search query should be specific enough to find relevant educational content on YouTube.
+  
+  ${!paid ? "focus on the core concepts and foundational knowledge." : ` Ensure to include additional units or topics related to the provided title. These should be integrated into the course structure, following the same format as the initial units. The goal is to create a course that starts from the basics and progresses to advanced topics, covering all aspects of the subject matter.`}. Also Make sure that the title and order of units and chapter make sense and are related.
+  
+  The output should be a JSON object with the following structure:
+  
+  {
+   "course_title": "A concise and descriptive course title that summarizes the course content",
+   "Units": [
+      {
+        "unit_title": "A descriptive title for the unit",
+        "chapters": [
+          {
+            "youtube_search_query": "A specific search query to find an educational video",
+            "chapter_title": "A descriptive title for the chapter"
+          },
+          // Additional chapters...
+        ]
+      },
+      // Additional units...
+   ]
+  }
+  
+  Ensure the output is well-structured and follows the specified format. Do not include quotation marks or escape characters in the output fields.`;
+  
   const user_prompt = units.map(
     (unit) =>
       `It is your job to create a unit about ${unit}. The user has requested to create chapters for ${unit}. Then, for each chapter, provide a detailed YouTube search query that can be used to find an informative educational video for each chapter. Each query should give an educational informative course in YouTube.`
@@ -147,18 +169,20 @@ async function strict_output(
 
         // Parse the cleaned string into a JSON object
         try {
+          console.log(cleanedData,'cleaned Data');
           let output = JSON.parse(cleanedData);
           // Check if the number of units is less than 4 and paid is true
-          if (paid && output.result.Units && output.result.Units.length < 12) {
-            // If condition not met, continue the loop to call the API again
-            continue;
-          } else if (
-            paid &&
-            output.result.Units &&
-            output.result.Units.length == 12
-          ) {
-            return output;
-          }
+          // if (paid && output.result.Units && output.result.Units.length < 12) {
+          //   // If condition not met, continue the loop to call the API again
+          //   continue;
+          // } else if (
+          //   paid &&
+          //   output.result.Units &&
+          //   output.result.Units.length == 12
+          // ) {
+          //   return output;
+          // }
+          return output
 
           // Return the output if the condition is met
         } catch (error) {
