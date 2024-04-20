@@ -6,18 +6,6 @@ const { json } = require("express/lib/response");
 const apiKey = "AIzaSyBLEP8u2Sgf5oSNEUBWdYOwbWh_jpud0xo"; // Ensure you have set GOOGLE_API_KEY environment variable
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// const configuration = new Configuration({
-//   apiKey: process.env.OPENAI_API_KEY,
-// });
-// const openai = new OpenAIApi(configuration);
-// if(openai){
-//   console.log("openai is working");
-
-// }
-// interface OutputFormat {
-//   [key: string]: string | string[] | OutputFormat;
-// }
-
 app.use(express.json());
 app.post("/", async (req, res) => {
   const { title, units, paid } = req.body;
@@ -53,7 +41,7 @@ app.post("/", async (req, res) => {
       `It is your job to create a unit about ${unit}. The user has requested to create chapters for ${unit}. Then, for each chapter, provide a detailed YouTube search query that can be used to find an informative educational video for each chapter. Each query should give an educational informative course in YouTube.`
   );
   const output_format = {
-    course_title: `make sure alwaays include this ${title} in output and if the title does not resonate with the units then make a course_title which resonates with unit_title and this is only the main title of the whole course summkarizing what all is in this course`,
+    course_title: `make sure always include this ${title} or similar title according to you in output and if the title does not resonate with the units then make a course_title which resonates with unit_title and this is only the main title of the whole course summkarizing what all is in this course`,
     Units: [
       {
         unit_title: "this is the unit title for a particular unit",
